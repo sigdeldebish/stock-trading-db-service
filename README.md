@@ -35,3 +35,8 @@ Ensure you have the following installed on your system:
     `/Desktop` and copy the absolute path to docker-compose volumes` - /Users/debish/Desktop/mongoPermData:/data/db`
 
 6. Run service in docker with command`docker-comose up` from the terminal after navigating to `stock-trading-db-service` directory.
+
+### Check if server is running
+
+1. Go to terminal and send a request sample GET to the service with command `curl http://127.0.0.1:8000/hello`. 
+    You should get back 200 Success with JSON response `{"message": "Hello World"}`
