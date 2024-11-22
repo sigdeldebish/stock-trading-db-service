@@ -1,4 +1,4 @@
-# Stock Trading System - Group 28 (Debish Sigdel, Stephen Sheveland, Matthew Mcmahon)
+# Stock Trading System - Group 28 
 
 ### Mongo DB attached to a web service for CRUD operations for the Stock Trading Database component. 
 
