@@ -1,1 +1,1 @@
-uvicorn main:app --port 8000
+uvicorn app.main:app --port 8000

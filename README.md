@@ -22,7 +22,7 @@ Ensure you have the following installed on your system:
 1. Open a terminal and navigate to your desired directory.
 2. Clone the repository:
    ```bash
-   git clone <repository_url>
+   `git clone https://github.com/sigdeldebish/stock-trading-db-service.git`
    
 ### Run the service locally in docker
 
