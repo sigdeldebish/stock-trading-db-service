@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stock-trading-db-service-mongo-fastapi
+    ports:
+      - "8000:8000"  # Expose FastAPI to external clients
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017  # Use the internal Docker hostname for MongoDB
+    networks:
+      - app-network
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    # Do not expose MongoDB port to the host
+    expose:
+      - "27017"  # Internal network port exposed only to app-network
+    networks:
+      - app-network
+    volumes:
+      - /Users/debish/Desktop/mongoData:/data/db  # Replace with your desired persistent path
+
+networks:
+  app-network:
+    driver: bridge
