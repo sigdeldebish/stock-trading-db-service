@@ -31,7 +31,7 @@ Ensure you have the following installed on your system:
 3. Review all the files. 
 4. Open terminal and run command `docker ps` to check if the docker engine/daemon is running. 
 5. Go to the `docker-compose.yml` file and in line 28 within `volumes` change the path to the 
-    path you want Mongo to store the data in you PC. I simply create a directory in my 
-    `/Desktop` and copy the absolute path to that directory like ` - /Users/debish/Desktop/mongoPermData:/data/db`
+    path you want Mongo to store the data in you PC. I created a directory in
+    `/Desktop` and copied the absolute path to my docker-compose` - /Users/debish/Desktop/mongoPermData:/data/db`
 
 6. Run service in docker with command`docker-comose up` from the terminal on navigating to `stock-trading-db-service` directory.
