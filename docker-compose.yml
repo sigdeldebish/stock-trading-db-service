@@ -7,17 +7,17 @@ services:
       dockerfile: Dockerfile
     container_name: stock-trading-db-service-mongo-fastapi
     ports:
-      - "8000:8000"  # Expose FastAPI to external clients
+      - "8000:8000"  # Expose FastAPI on port 8000
     depends_on:
       - mongodb
     environment:
-      - MONGO_URL=mongodb://mongodb:27017  # Use the internal Docker hostname for MongoDB
+      - MONGO_URL=mongodb://mongodb:27017
     networks:
       - app-network
 
   mongodb:
     image: mongo:latest
-    container_name: mongodb
+    container_name: mongodb-engine-container
     restart: always
     # Do not expose MongoDB port to the host
     expose:
