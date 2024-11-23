@@ -38,5 +38,5 @@ Ensure you have the following installed on your system:
 
 ### Check if server is running
 
-1. Go to terminal and send a request sample GET to the service with command `curl http://127.0.0.1:8000/hello`. 
-    You should get back 200 Success with JSON response `{"message": "Hello World"}`
+1. Go `http://127.0.0.1:8000/docs` on your browser to open a SwaggerUI OpenAPI Spec for the Database endpoints. 
+    
