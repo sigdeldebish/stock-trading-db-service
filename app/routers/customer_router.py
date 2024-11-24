@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.mongo.connector import db
-from app.utils.auth_and_rbac import get_current_user, require_admin_or_self
-from bson import ObjectId
+from app.utils.auth_and_rbac import get_current_user
 
 router = APIRouter(
     prefix="/customers",
@@ -108,8 +107,8 @@ async def sell_stock(stock_ticker: str, volume: int, price: float, order_id: str
     )
 
     # Remove stock from portfolio if quantity is zero
-    user = await db.users.find_one({"username": user["username"]})
-    if user["portfolio"].get(stock_ticker, 0) == 0:
+    updated_user = await db.users.find_one({"username": user["username"]})
+    if updated_user["portfolio"].get(stock_ticker, 0) == 0:
         await db.users.update_one(
             {"username": user["username"]},
             {"$unset": {f"portfolio.{stock_ticker}": ""}},
@@ -184,7 +183,7 @@ async def withdraw_cash(amount: float, user=Depends(get_current_user)):
     description="Retrieve the user's stock portfolio.",
     responses={200: {"description": "Portfolio retrieved"}},
 )
-async def get_user_portfolio(user=Depends(require_admin_or_self)):
+async def get_user_portfolio(user=Depends(get_current_user)):
     """
     Fetches the portfolio of the authenticated user.
     """
@@ -197,7 +196,7 @@ async def get_user_portfolio(user=Depends(require_admin_or_self)):
     description="Retrieve the transaction history for the logged-in user.",
     responses={200: {"description": "Transaction history retrieved"}},
 )
-async def get_transaction_history(user=Depends(require_admin_or_self)):
+async def get_transaction_history(user=Depends(get_current_user)):
     """
     Fetches the transaction history for the authenticated user.
     """

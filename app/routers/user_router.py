@@ -3,8 +3,9 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from app.models.user_model import UserSignup, UserResponse
 from app.mongo.connector import db
 from passlib.context import CryptContext
-from app.utils.auth_and_rbac import require_admin_or_self
-from app.utils.jwt_handler import create_access_token
+from app.utils.auth_and_rbac import get_current_user
+from app.utils.jwt_handler import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from datetime import timedelta
 
 router = APIRouter(
     prefix="/users",
@@ -64,12 +65,16 @@ async def add_user(user: UserSignup):
     "/login",
     status_code=status.HTTP_200_OK,
     description="Authenticate user and return a JWT token for authenticating with other secure APIs.",
+    responses={
+        200: {"description": "Login successful and JWT token returned"},
+        401: {"description": "Invalid username or password"},
+    },
 )
 async def login(credentials: HTTPBasicCredentials = Depends(security)):
     """
     **Login:**
     - Authenticates a user using BasicAuth.
-    - Returns a JWT token.
+    - Returns a JWT token with an expiry time.
     """
     # Retrieve user from the database
     user_record = await db.users.find_one({"username": credentials.username})
@@ -79,9 +84,20 @@ async def login(credentials: HTTPBasicCredentials = Depends(security)):
             detail="Invalid username or password",
         )
 
+    # Set token expiry
+    token_expiry = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
     # Generate JWT token
-    token = create_access_token({"sub": user_record["username"], "userType": user_record["userType"]})
-    return {"message": "Login successful", "token": token}
+    token = create_access_token(
+        data={"sub": user_record["username"], "userType": user_record["userType"]},
+        expires_delta=token_expiry
+    )
+
+    return {
+        "message": "Login successful",
+        "token": token,
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES,
+    }
 
 
 @router.delete(
@@ -91,12 +107,20 @@ async def login(credentials: HTTPBasicCredentials = Depends(security)):
 )
 async def remove_user(
     username: str,
-    current_user=Depends(require_admin_or_self)
+    current_user=Depends(get_current_user)
 ):
     """
     **Remove User:**
     - Deactivates a user account by marking it as inactive.
+    - Only accessible by admin users or the user themselves.
     """
+    # Ensure the current user has access
+    if current_user["userType"] != "admin" and current_user["username"] != username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
+
     result = await db.users.update_one(
         {"username": username},
         {"$set": {"isActive": False}},
@@ -119,12 +143,20 @@ async def remove_user(
 async def update_user_details(
     username: str,
     user: UserSignup,
-    current_user=Depends(require_admin_or_self)
+    current_user=Depends(get_current_user)
 ):
     """
     **Update User Details:**
     - Updates the username, email, or password for a user.
+    - Accessible by admin users or the user themselves.
     """
+    # Ensure the current user has access
+    if current_user["userType"] != "admin" and current_user["username"] != username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
+
     hashed_password = pwd_context.hash(user.password)
     update_data = {
         "username": user.username,
@@ -155,12 +187,20 @@ async def update_user_details(
 )
 async def get_user_details(
     username: str,
-    current_user=Depends(require_admin_or_self)
+    current_user=Depends(get_current_user)
 ):
     """
     **Get User Details:**
     - Fetches user details by username.
+    - Accessible by admin users or the user themselves.
     """
+    # Ensure the current user has access
+    if current_user["userType"] != "admin" and current_user["username"] != username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
+
     user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from app.models.order_model import OrderCreate, OrderResponse
 from app.mongo.connector import db
 from bson import ObjectId
-from app.utils.auth_and_rbac import get_current_user, require_admin_or_self
+from app.utils.auth_and_rbac import get_current_user
 
 router = APIRouter(
     prefix="/orders",
@@ -48,7 +48,7 @@ async def execute_order(order: OrderCreate, user=Depends(get_current_user)):
 
     # Record the order in the system
     order_data = order.dict()
-    order_data["userID"] = user["userID"]
+    order_data["username"] = user["username"]
     result = await db.orders.insert_one(order_data)
     order_data["id"] = str(result.inserted_id)
 
@@ -64,7 +64,7 @@ async def execute_order(order: OrderCreate, user=Depends(get_current_user)):
         404: {"description": "Order not found"},
     },
 )
-async def cancel_order(order_id: str, user=Depends(require_admin_or_self)):
+async def cancel_order(order_id: str, user=Depends(get_current_user)):
     """
     **Cancel Order:**
     - Cancels an order.
@@ -76,6 +76,13 @@ async def cancel_order(order_id: str, user=Depends(require_admin_or_self)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "Order not found", "code": "ORDER_NOT_FOUND"},
+        )
+
+    # Check if the current user is allowed to cancel the order
+    if user["userType"] != "admin" and order["username"] != user["username"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
         )
 
     # Cancel the order
@@ -94,7 +101,7 @@ async def cancel_order(order_id: str, user=Depends(require_admin_or_self)):
         404: {"description": "Order not found"},
     },
 )
-async def get_order_status(order_id: str, user=Depends(require_admin_or_self)):
+async def get_order_status(order_id: str, user=Depends(get_current_user)):
     """
     **Get Order Status:**
     - Retrieves the current status of an order.
@@ -106,6 +113,13 @@ async def get_order_status(order_id: str, user=Depends(require_admin_or_self)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "Order not found", "code": "ORDER_NOT_FOUND"},
+        )
+
+    # Check if the current user is allowed to view the order status
+    if user["userType"] != "admin" and order["username"] != user["username"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
         )
 
     order["id"] = str(order["_id"])
@@ -127,7 +141,7 @@ async def get_past_orders(user=Depends(get_current_user)):
     **Get All Orders for User:**
     - Fetches a list of all past orders placed by the authenticated user.
     """
-    orders = await db.orders.find({"userID": user["userID"]}).to_list(length=100)
+    orders = await db.orders.find({"username": user["username"]}).to_list(length=100)
     for order in orders:
         order["id"] = str(order["_id"])
         del order["_id"]
