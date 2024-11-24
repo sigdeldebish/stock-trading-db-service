@@ -3,10 +3,11 @@ from app.models.order_model import OrderCreate, OrderResponse
 from app.mongo.connector import db
 from bson import ObjectId
 from app.utils.auth_and_rbac import get_current_user
+from datetime import datetime
 
 router = APIRouter(
     prefix="/orders",
-    tags=["Orders"],
+    tags=["Orders Operations"],
     responses={
         404: {"description": "Order not found"},
         403: {"description": "Forbidden"},
@@ -46,14 +47,15 @@ async def execute_order(order: OrderCreate, user=Depends(get_current_user)):
                 detail={"error": "Insufficient stock holdings", "code": "INSUFFICIENT_STOCKS"},
             )
 
-    # Record the order in the system
+    # Record the order in the system with a generated timestamp
     order_data = order.dict()
     order_data["username"] = user["username"]
+    order_data["timestamp"] = datetime.utcnow()  # Generate the current UTC timestamp
+
     result = await db.orders.insert_one(order_data)
     order_data["id"] = str(result.inserted_id)
 
     return order_data
-
 
 @router.delete(
     "/{order_id}",

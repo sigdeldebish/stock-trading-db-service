@@ -5,7 +5,7 @@ from app.utils.auth_and_rbac import get_current_user
 
 router = APIRouter(
     prefix="/accounts",
-    tags=["Accounts"],
+    tags=["Accounts Operations"],
     responses={
         403: {"description": "Forbidden"},
         404: {"description": "Account not found"},

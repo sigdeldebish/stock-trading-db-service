@@ -9,11 +9,12 @@ SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 
 
-async def get_current_user(authorization: str = Header(..., description="JWT Authorization token")):
+async def get_current_user():
     """
     Retrieves the currently authenticated user using JWT.
     Dynamically fetches the Authorization header, so it does not show up in the schema.
     """
+    authorization: str = Header(..., description="JWT Authorization token")
     # Extract and validate the token from the Authorization header
     token_prefix = "Bearer "
     if not authorization.startswith(token_prefix):
@@ -47,39 +48,40 @@ async def get_current_user(authorization: str = Header(..., description="JWT Aut
     return current_user
 
 
-async def require_admin_or_self(
-    resource_id: str,
-    current_user: dict = Depends(get_current_user),
-):
-    """
-    Ensures the current user is either an admin or the owner of the resource.
-    Dynamically validates the token and resource ownership without exposing params in schema.
-    """
-    # Admin users have full access
-    if current_user["userType"] == "admin":
-        return current_user
+# async def require_admin_or_self(
+#     resource_id: str,
+#     current_user: dict = Depends(get_current_user),
+# ):
+#     """
+#     Ensures the current user is either an admin or the owner of the resource.
+#     Dynamically validates the token and resource ownership without exposing params in schema.
+#     """
+#     # Admin users have full access
+#     if current_user["userType"] == "admin":
+#         return current_user
+#
+#     # For non-admins, validate ownership of the resource
+#     resource = await db.orders.find_one({"_id": ObjectId(resource_id)})
+#     if not resource:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Resource not found",
+#         )
+#
+#     if resource["userID"] != current_user["userID"]:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Access denied",
+#         )
+#
+#     return current_user
 
-    # For non-admins, validate ownership of the resource
-    resource = await db.orders.find_one({"_id": ObjectId(resource_id)})
-    if not resource:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found",
-        )
 
-    if resource["userID"] != current_user["userID"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
-
-    return current_user
-
-
-async def require_admin(current_user: dict = Depends(get_current_user)):
+async def require_admin():
     """
     Ensures the current user is an admin.
     """
+    current_user: dict = await get_current_user()
     if current_user["userType"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

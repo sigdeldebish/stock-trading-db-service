@@ -6,7 +6,7 @@ from app.utils.auth_and_rbac import get_current_user
 
 router = APIRouter(
     prefix="/transactions",
-    tags=["Transactions"],
+    tags=["Transactions Operations"],
     responses={
         404: {"description": "Transaction not found"},
         400: {"description": "Bad request"},

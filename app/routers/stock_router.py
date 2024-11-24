@@ -5,7 +5,7 @@ from app.utils.auth_and_rbac import require_admin, get_current_user
 
 router = APIRouter(
     prefix="/stocks",
-    tags=["Stocks"],
+    tags=["Stocks Operations"],
     responses={
         404: {"description": "Stock not found"},
         400: {"description": "Bad request"},

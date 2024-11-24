@@ -9,7 +9,7 @@ from datetime import timedelta
 
 router = APIRouter(
     prefix="/users",
-    tags=["Users"],
+    tags=["Users Operations"],
     responses={
         404: {"description": "User not found"},
         400: {"description": "Bad request"},

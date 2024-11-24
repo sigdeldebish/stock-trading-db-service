@@ -6,7 +6,7 @@ from datetime import datetime
 
 router = APIRouter(
     prefix="/market",
-    tags=["Market"],
+    tags=["Market Operations"],
     responses={
         404: {"description": "Market not found"},
         400: {"description": "Bad request"},

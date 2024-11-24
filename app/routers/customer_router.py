@@ -4,7 +4,7 @@ from app.utils.auth_and_rbac import get_current_user
 
 router = APIRouter(
     prefix="/customers",
-    tags=["Customers"],
+    tags=["Customers Operations"],
     responses={
         403: {"description": "Access forbidden"},
         404: {"description": "Resource not found"},

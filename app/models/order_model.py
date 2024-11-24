@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 from datetime import datetime
 
 
@@ -10,7 +11,7 @@ class OrderBase(BaseModel):
     volume: int = Field(..., ge=1, example=20)
     price: float = Field(..., gt=0, example=160.0)
     status: str = Field(..., example="pending", description="pending, completed, or canceled")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, example="2024-11-24T12:34:56Z")
+    # timestamp: datetime = Optional[Field(default_factory=datetime.utcnow)]
     marketStatus: str = Field(..., example="open", description="open or closed")
 
 

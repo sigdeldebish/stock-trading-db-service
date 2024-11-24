@@ -4,7 +4,7 @@ from app.utils.auth_and_rbac import require_admin
 
 router = APIRouter(
     prefix="/admin",
-    tags=["Admin"],
+    tags=["Admin Operations"],
     responses={
         403: {"description": "Admin access required"},
         404: {"description": "Resource not found"},
