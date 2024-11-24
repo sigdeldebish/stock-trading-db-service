@@ -31,7 +31,7 @@ async def startup_event():
     Startup event handler for initializing collections and inserting sample data.
     Checks for the environment mode to decide whether to connect to MongoDB.
     """
-    test_mode = True
+    test_mode = False
 
     if not test_mode:
         print("Starting in production mode: Initializing MongoDB...")
