@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.models.stock_model import StockCreate, StockResponse
 from app.mongo.connector import db
-from bson import ObjectId
 from app.utils.auth_and_rbac import require_admin, get_current_user
 
 router = APIRouter(
@@ -20,11 +19,6 @@ router = APIRouter(
     response_model=StockResponse,
     status_code=status.HTTP_201_CREATED,
     description="Add a new stock for trading (admin-only).",
-    responses={
-        201: {"description": "Stock added successfully"},
-        400: {"description": "Stock already exists"},
-        403: {"description": "Admin access required"},
-    },
 )
 async def add_new_stock(stock: StockCreate, admin_user=Depends(require_admin)):
     """
@@ -51,22 +45,18 @@ async def add_new_stock(stock: StockCreate, admin_user=Depends(require_admin)):
 
 
 @router.get(
-    "/{stock_id}",
+    "/{stock_ticker}",
     response_model=StockResponse,
     status_code=status.HTTP_200_OK,
-    description="Retrieve details of a specific stock by its ID (open to all authenticated users).",
-    responses={
-        200: {"description": "Stock retrieved successfully"},
-        404: {"description": "Stock not found"},
-    },
+    description="Retrieve details of a specific stock by its ticker.",
 )
-async def get_stock_details(stock_id: str, user=Depends(get_current_user)):
+async def get_stock_details(stock_ticker: str, user=Depends(get_current_user)):
     """
     **Get Stock Details:**
-    - Retrieves details of a stock by its unique ID.
+    - Retrieves details of a stock by its unique ticker.
     - Accessible to all authenticated users.
     """
-    stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+    stock = await db.stocks.find_one({"stockTicker": stock_ticker})
 
     if not stock:
         raise HTTPException(
@@ -80,21 +70,15 @@ async def get_stock_details(stock_id: str, user=Depends(get_current_user)):
 
 
 @router.put(
-    "/{stock_id}/price",
+    "/{stock_ticker}/price",
     response_model=StockResponse,
     status_code=status.HTTP_200_OK,
-    description="Update the price of a specific stock (admin-only).",
-    responses={
-        200: {"description": "Stock price updated successfully"},
-        404: {"description": "Stock not found"},
-        400: {"description": "Invalid price"},
-        403: {"description": "Admin access required"},
-    },
+    description="Update the price of a specific stock by its ticker (admin-only).",
 )
-async def update_price(stock_id: str, price: float, admin_user=Depends(require_admin)):
+async def update_price(stock_ticker: str, price: float, admin_user=Depends(require_admin)):
     """
     **Update Price:**
-    - Updates the current price of a specific stock.
+    - Updates the current price of a specific stock by its ticker.
     - Admin-only access.
     """
     if price <= 0:
@@ -104,7 +88,7 @@ async def update_price(stock_id: str, price: float, admin_user=Depends(require_a
         )
 
     result = await db.stocks.update_one(
-        {"_id": ObjectId(stock_id)},
+        {"stockTicker": stock_ticker},
         {"$set": {"currentPrice": price}},
     )
 
@@ -114,29 +98,24 @@ async def update_price(stock_id: str, price: float, admin_user=Depends(require_a
             detail={"error": "Stock not found", "code": "STOCK_NOT_FOUND"},
         )
 
-    updated_stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+    updated_stock = await db.stocks.find_one({"stockTicker": stock_ticker})
     updated_stock["id"] = str(updated_stock["_id"])
     del updated_stock["_id"]
     return updated_stock
 
 
 @router.delete(
-    "/{stock_id}",
+    "/{stock_ticker}",
     status_code=status.HTTP_200_OK,
-    description="Remove a specific stock from the system (admin-only).",
-    responses={
-        200: {"description": "Stock removed successfully"},
-        404: {"description": "Stock not found"},
-        403: {"description": "Admin access required"},
-    },
+    description="Remove a specific stock by its ticker (admin-only).",
 )
-async def remove_stock(stock_id: str, admin_user=Depends(require_admin)):
+async def remove_stock(stock_ticker: str, admin_user=Depends(require_admin)):
     """
     **Remove Stock:**
-    - Deletes a specific stock from the system.
+    - Deletes a specific stock from the system by its ticker.
     - Admin-only access.
     """
-    result = await db.stocks.delete_one({"_id": ObjectId(stock_id)})
+    result = await db.stocks.delete_one({"stockTicker": stock_ticker})
 
     if result.deleted_count == 0:
         raise HTTPException(

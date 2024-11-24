@@ -5,7 +5,7 @@ from datetime import datetime
 class OrderBase(BaseModel):
     orderID: int = Field(..., example=1001)
     userID: int = Field(..., example=1)
-    stockID: int = Field(..., example=10)
+    stockTicker: str = Field(..., example="AAPL", description="Stock ticker symbol")
     orderType: str = Field(..., example="buy", description="buy or sell")
     volume: int = Field(..., ge=1, example=20)
     price: float = Field(..., gt=0, example=160.0)

@@ -40,7 +40,7 @@ async def execute_order(order: OrderCreate, user=Depends(get_current_user)):
             )
     elif order.orderType == "sell":
         portfolio = user.get("portfolio", {})
-        if portfolio.get(str(order.stockID), 0) < order.volume:
+        if portfolio.get(order.stockTicker, 0) < order.volume:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": "Insufficient stock holdings", "code": "INSUFFICIENT_STOCKS"},
@@ -55,9 +55,8 @@ async def execute_order(order: OrderCreate, user=Depends(get_current_user)):
     return order_data
 
 
-@router.put(
-    "/{order_id}/cancel",
-    response_model=OrderResponse,
+@router.delete(
+    "/{order_id}",
     status_code=status.HTTP_200_OK,
     description="Cancel an order by its ID.",
     responses={
@@ -68,7 +67,7 @@ async def execute_order(order: OrderCreate, user=Depends(get_current_user)):
 async def cancel_order(order_id: str, user=Depends(require_admin_or_self)):
     """
     **Cancel Order:**
-    - Cancels an order if it is still pending.
+    - Cancels an order.
     - Only the order creator or an admin can cancel the order.
     """
     # Check if the order exists
@@ -79,25 +78,14 @@ async def cancel_order(order_id: str, user=Depends(require_admin_or_self)):
             detail={"error": "Order not found", "code": "ORDER_NOT_FOUND"},
         )
 
-    # Ensure the order status is "pending"
-    if order["status"] != "pending":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Order cannot be canceled", "code": "ORDER_NOT_CANCELABLE"},
-        )
-
     # Cancel the order
     await db.orders.update_one({"_id": ObjectId(order_id)}, {"$set": {"status": "canceled"}})
 
-    # Fetch the updated order
-    canceled_order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    canceled_order["id"] = str(canceled_order["_id"])
-    del canceled_order["_id"]
-    return canceled_order
+    return {"message": "Order canceled successfully"}
 
 
 @router.get(
-    "/{order_id}/status",
+    "/{order_id}",
     response_model=OrderResponse,
     status_code=status.HTTP_200_OK,
     description="Get the status of a specific order by its ID.",
@@ -126,7 +114,7 @@ async def get_order_status(order_id: str, user=Depends(require_admin_or_self)):
 
 
 @router.get(
-    "/past",
+    "/all/self",
     response_model=list[OrderResponse],
     status_code=status.HTTP_200_OK,
     description="Retrieve a list of past orders for the authenticated user.",
@@ -136,7 +124,7 @@ async def get_order_status(order_id: str, user=Depends(require_admin_or_self)):
 )
 async def get_past_orders(user=Depends(get_current_user)):
     """
-    **Get Past Orders:**
+    **Get All Orders for User:**
     - Fetches a list of all past orders placed by the authenticated user.
     """
     orders = await db.orders.find({"userID": user["userID"]}).to_list(length=100)

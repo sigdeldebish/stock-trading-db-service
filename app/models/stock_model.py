@@ -2,8 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class StockBase(BaseModel):
-    stockID: int = Field(..., example=10)
-    stockTicker: str = Field(..., example="AAPL")
+    stockTicker: str = Field(..., example="AAPL", description="Stock ticker symbol")
     companyName: str = Field(..., example="Apple Inc.")
     volume: int = Field(..., ge=0, example=10000)
     initialPrice: float = Field(..., gt=0, example=150.0)

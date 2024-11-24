@@ -20,25 +20,18 @@ router = APIRouter(
     responses={200: {"description": "Support details retrieved"}},
 )
 async def get_support_contact_details():
-    """
-    **Get Support Contact Details:**
-    - Returns customer support contact information.
-    """
+    """Provides customer support contact information."""
     return {"email": "support@tradingplatform.com", "phone": "+1-800-123-4567"}
 
 
 @router.post(
     "/validate-bank",
     description="Validate external bank authorization for deposit.",
-    responses={
-        200: {"description": "Bank authorization validated"},
-        400: {"description": "Invalid authorization details"},
-    },
+    responses={200: {"description": "Bank authorization validated"}},
 )
 async def validate_external_bank_authorization_for_deposit(bank_id: str, user=Depends(get_current_user)):
     """
-    **Validate External Bank Authorization:**
-    - Checks if the provided bank details are valid for deposit.
+    Validates external bank details for deposit.
     """
     if not bank_id or len(bank_id) < 5:
         raise HTTPException(status_code=400, detail="Invalid bank authorization details")
@@ -49,15 +42,11 @@ async def validate_external_bank_authorization_for_deposit(bank_id: str, user=De
 @router.post(
     "/buy-stock",
     description="Buy stock as a customer.",
-    responses={
-        200: {"description": "Stock purchased successfully"},
-        400: {"description": "Insufficient balance or invalid stock"},
-    },
+    responses={200: {"description": "Stock purchased successfully"}},
 )
-async def buy_stock(stock_id: str, volume: int, price: float, user=Depends(get_current_user)):
+async def buy_stock(stock_ticker: str, volume: int, price: float, order_id: str, user=Depends(get_current_user)):
     """
-    **Buy Stock:**
-    - Handles stock purchase for the current user.
+    Buys stock for the authenticated user and records a transaction.
     """
     total_cost = volume * price
 
@@ -66,22 +55,23 @@ async def buy_stock(stock_id: str, volume: int, price: float, user=Depends(get_c
             status_code=400, detail="Insufficient balance to complete the purchase"
         )
 
-    stock = await db.stocks.find_one({"_id": ObjectId(stock_id)})
+    stock = await db.stocks.find_one({"stockTicker": stock_ticker})
     if not stock:
         raise HTTPException(status_code=404, detail="Stock not found")
 
     # Update user balance and portfolio
     await db.users.update_one(
-        {"_id": ObjectId(user["_id"])},
+        {"username": user["username"]},
         {
-            "$inc": {"account.balance": -total_cost, f"portfolio.{stock_id}": volume},
+            "$inc": {"account.balance": -total_cost, f"portfolio.{stock_ticker}": volume},
         },
     )
 
     # Create transaction record
     transaction = {
-        "userID": user["userID"],
-        "stockID": stock_id,
+        "username": user["username"],
+        "orderID": order_id,
+        "stockTicker": stock_ticker,
         "volume": volume,
         "price": price,
         "totalAmount": total_cost,
@@ -95,17 +85,14 @@ async def buy_stock(stock_id: str, volume: int, price: float, user=Depends(get_c
 @router.post(
     "/sell-stock",
     description="Sell stock as a customer.",
-    responses={
-        200: {"description": "Stock sold successfully"},
-        400: {"description": "Invalid stock or insufficient holdings"},
-    },
+    responses={200: {"description": "Stock sold successfully"}},
 )
-async def sell_stock(stock_id: str, volume: int, price: float, user=Depends(get_current_user)):
+async def sell_stock(stock_ticker: str, volume: int, price: float, order_id: str, user=Depends(get_current_user)):
     """
-    **Sell Stock:**
-    - Handles stock sale for the current user.
+    Sells stock for the authenticated user and records a transaction.
     """
-    if stock_id not in user["portfolio"] or user["portfolio"][stock_id] < volume:
+    portfolio = user.get("portfolio", {})
+    if stock_ticker not in portfolio or portfolio[stock_ticker] < volume:
         raise HTTPException(
             status_code=400, detail="Insufficient holdings to complete the sale"
         )
@@ -114,24 +101,25 @@ async def sell_stock(stock_id: str, volume: int, price: float, user=Depends(get_
 
     # Update user portfolio and balance
     await db.users.update_one(
-        {"_id": ObjectId(user["_id"])},
+        {"username": user["username"]},
         {
-            "$inc": {"account.balance": total_earnings, f"portfolio.{stock_id}": -volume},
+            "$inc": {"account.balance": total_earnings, f"portfolio.{stock_ticker}": -volume},
         },
     )
 
     # Remove stock from portfolio if quantity is zero
-    user = await db.users.find_one({"_id": ObjectId(user["_id"])})
-    if user["portfolio"][stock_id] == 0:
+    user = await db.users.find_one({"username": user["username"]})
+    if user["portfolio"].get(stock_ticker, 0) == 0:
         await db.users.update_one(
-            {"_id": ObjectId(user["_id"])},
-            {"$unset": {f"portfolio.{stock_id}": ""}},
+            {"username": user["username"]},
+            {"$unset": {f"portfolio.{stock_ticker}": ""}},
         )
 
     # Create transaction record
     transaction = {
-        "userID": user["userID"],
-        "stockID": stock_id,
+        "username": user["username"],
+        "orderID": order_id,
+        "stockTicker": stock_ticker,
         "volume": -volume,
         "price": price,
         "totalAmount": total_earnings,
@@ -145,15 +133,11 @@ async def sell_stock(stock_id: str, volume: int, price: float, user=Depends(get_
 @router.post(
     "/deposit-cash",
     description="Deposit cash into the account.",
-    responses={
-        200: {"description": "Cash deposited successfully"},
-        400: {"description": "Invalid deposit amount"},
-    },
+    responses={200: {"description": "Cash deposited successfully"}},
 )
 async def deposit_cash(amount: float, user=Depends(get_current_user)):
     """
-    **Deposit Cash:**
-    - Deposits cash into the user's account.
+    Deposits cash into the authenticated user's account.
     """
     if amount <= 0:
         raise HTTPException(
@@ -161,7 +145,7 @@ async def deposit_cash(amount: float, user=Depends(get_current_user)):
         )
 
     await db.users.update_one(
-        {"_id": ObjectId(user["_id"])},
+        {"username": user["username"]},
         {"$inc": {"account.balance": amount}},
     )
 
@@ -171,15 +155,11 @@ async def deposit_cash(amount: float, user=Depends(get_current_user)):
 @router.post(
     "/withdraw-cash",
     description="Withdraw cash from the account.",
-    responses={
-        200: {"description": "Cash withdrawn successfully"},
-        400: {"description": "Insufficient balance or invalid amount"},
-    },
+    responses={200: {"description": "Cash withdrawn successfully"}},
 )
 async def withdraw_cash(amount: float, user=Depends(get_current_user)):
     """
-    **Withdraw Cash:**
-    - Withdraws cash from the user's account.
+    Withdraws cash from the authenticated user's account.
     """
     if amount <= 0:
         raise HTTPException(
@@ -192,7 +172,7 @@ async def withdraw_cash(amount: float, user=Depends(get_current_user)):
         )
 
     await db.users.update_one(
-        {"_id": ObjectId(user["_id"])},
+        {"username": user["username"]},
         {"$inc": {"account.balance": -amount}},
     )
 
@@ -200,55 +180,28 @@ async def withdraw_cash(amount: float, user=Depends(get_current_user)):
 
 
 @router.get(
-    "/portfolio/{user_id}",
-    description="Retrieve the user's stock portfolio (self or admin).",
-    responses={
-        200: {"description": "Portfolio retrieved"},
-        404: {"description": "User not found"},
-    },
+    "/portfolio",
+    description="Retrieve the user's stock portfolio.",
+    responses={200: {"description": "Portfolio retrieved"}},
 )
-async def get_user_portfolio(
-    user_id: str, current_user=Depends(require_admin_or_self)
-):
+async def get_user_portfolio(user=Depends(require_admin_or_self)):
     """
-    **Get User Portfolio:**
-    - Fetches the portfolio of the specified user.
-    - Accessible by the user themselves or admin users.
+    Fetches the portfolio of the authenticated user.
     """
-    user = await db.users.find_one({"userID": user_id})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "User not found", "code": "USER_NOT_FOUND"},
-        )
-
     portfolio = user.get("portfolio", {})
     return {"portfolio": portfolio}
 
 
 @router.get(
-    "/transactions/{user_id}",
-    description="Retrieve the transaction history for a user (self or admin).",
-    responses={
-        200: {"description": "Transaction history retrieved"},
-        404: {"description": "No transactions found"},
-    },
+    "/transactions",
+    description="Retrieve the transaction history for the logged-in user.",
+    responses={200: {"description": "Transaction history retrieved"}},
 )
-async def get_transaction_history(
-    user_id: str, current_user=Depends(require_admin_or_self)
-):
+async def get_transaction_history(user=Depends(require_admin_or_self)):
     """
-    **Get Transaction History:**
-    - Fetches the transaction history for the specified user.
-    - Accessible by the user themselves or admin users.
+    Fetches the transaction history for the authenticated user.
     """
-    transactions = await db.transactions.find({"userID": user_id}).to_list(length=50)
-    if not transactions:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "No transactions found", "code": "TRANSACTIONS_NOT_FOUND"},
-        )
-
+    transactions = await db.transactions.find({"username": user["username"]}).to_list(length=50)
     for txn in transactions:
         txn["id"] = str(txn["_id"])
         del txn["_id"]

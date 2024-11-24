@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.models.market_model import MarketUpdate, MarketResponse
 from app.mongo.connector import db
-from app.utils.auth_and_rbac import require_admin
+from app.utils.auth_and_rbac import require_admin, get_current_user
 from datetime import datetime
 
 router = APIRouter(
@@ -19,13 +19,7 @@ router = APIRouter(
     "/status",
     response_model=MarketResponse,
     status_code=status.HTTP_200_OK,
-    description="Update the market's status, opening hours, or holidays (admin only).",
-    responses={
-        200: {"description": "Market updated successfully"},
-        404: {"description": "Market not found"},
-        400: {"description": "Invalid data for market update"},
-        403: {"description": "Admin access required"},
-    },
+    description="Update the market's status, opening hours, or holidays (admin-only).",
 )
 async def update_market_status(
     market_update: MarketUpdate, admin_user=Depends(require_admin)
@@ -50,11 +44,6 @@ async def update_market_status(
         )
 
     market = await db.market.find_one({"marketID": 1})
-    if not market:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "Market not found after update", "code": "MARKET_NOT_FOUND_POST_UPDATE"},
-        )
     market["id"] = str(market["_id"])
     del market["_id"]
     return market
@@ -65,12 +54,8 @@ async def update_market_status(
     response_model=MarketResponse,
     status_code=status.HTTP_200_OK,
     description="Retrieve the current market status, opening hours, and holidays.",
-    responses={
-        200: {"description": "Market status retrieved successfully"},
-        404: {"description": "Market not found"},
-    },
 )
-async def get_market_status():
+async def get_market_status(user=Depends(get_current_user)):
     """
     **Get Market Status:**
     - Allows all authenticated users to retrieve the current market status.
@@ -89,12 +74,7 @@ async def get_market_status():
 @router.put(
     "/open",
     status_code=status.HTTP_200_OK,
-    description="Open the market (admin only).",
-    responses={
-        200: {"description": "Market opened successfully"},
-        404: {"description": "Market not found"},
-        403: {"description": "Admin access required"},
-    },
+    description="Open the market (admin-only).",
 )
 async def open_market(admin_user=Depends(require_admin)):
     """
@@ -113,12 +93,7 @@ async def open_market(admin_user=Depends(require_admin)):
 @router.put(
     "/close",
     status_code=status.HTTP_200_OK,
-    description="Close the market (admin only).",
-    responses={
-        200: {"description": "Market closed successfully"},
-        404: {"description": "Market not found"},
-        403: {"description": "Admin access required"},
-    },
+    description="Close the market (admin-only).",
 )
 async def close_market(admin_user=Depends(require_admin)):
     """
@@ -138,12 +113,7 @@ async def close_market(admin_user=Depends(require_admin)):
     "/schedule",
     response_model=MarketResponse,
     status_code=status.HTTP_200_OK,
-    description="Update the market's schedule (opening and closing hours).",
-    responses={
-        200: {"description": "Market schedule updated successfully"},
-        404: {"description": "Market not found"},
-        403: {"description": "Admin access required"},
-    },
+    description="Update the market's schedule (opening and closing hours, admin-only).",
 )
 async def update_market_schedule(
     opening_hours: str,
@@ -173,13 +143,9 @@ async def update_market_schedule(
 @router.get(
     "/is-open",
     status_code=status.HTTP_200_OK,
-    description="Check if the market is open.",
-    responses={
-        200: {"description": "Market open status retrieved"},
-        404: {"description": "Market not found"},
-    },
+    description="Check if the market is open (accessible to all authenticated users).",
 )
-async def is_market_open():
+async def is_market_open(user=Depends(get_current_user)):
     """
     **Is Market Open:**
     - Checks whether the market is currently open.

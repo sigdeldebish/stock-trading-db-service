@@ -8,6 +8,8 @@ services:
     container_name: stock-trading-db-service-mongo-fastapi
     ports:
       - "8000:8000"  # Expose FastAPI on port 8000
+    volumes:
+      - ./app:/app  # Bind mount your local app directory to the container
     depends_on:
       - mongodb
     environment:
