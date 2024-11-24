@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from jose import JWTError, jwt
 from bson import ObjectId
 from app.mongo.connector import db
@@ -9,20 +9,18 @@ SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 
 
-async def get_current_user():
+async def get_current_user(request: Request):
     """
     Retrieves the currently authenticated user using JWT.
-    Dynamically fetches the Authorization header, so it does not show up in the schema.
     """
-    authorization: str = Header(..., description="JWT Authorization token")
-    # Extract and validate the token from the Authorization header
+    authorization = request.headers.get("Authorization")
     token_prefix = "Bearer "
-    if not authorization.startswith(token_prefix):
+    if not authorization or not authorization.startswith(token_prefix):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token format",
+            detail="Invalid or missing Authorization header",
         )
-    token = authorization[len(token_prefix) :]
+    token = authorization[len(token_prefix):]
     payload = verify_access_token(token)
 
     if not payload:
@@ -77,11 +75,11 @@ async def get_current_user():
 #     return current_user
 
 
-async def require_admin():
+async def require_admin(request: Request):
     """
     Ensures the current user is an admin.
     """
-    current_user: dict = await get_current_user()
+    current_user: dict = await get_current_user(request)
     if current_user["userType"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

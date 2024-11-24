@@ -6,6 +6,7 @@ from passlib.context import CryptContext
 from app.utils.auth_and_rbac import get_current_user
 from app.utils.jwt_handler import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from datetime import timedelta
+import random
 
 router = APIRouter(
     prefix="/users",
@@ -33,6 +34,7 @@ async def add_user(user: UserSignup):
     **Add User (Sign Up):**
     - Register a new user.
     - Hashes the password for security.
+    - Assigns a unique userID.
     """
     hashed_password = pwd_context.hash(user.password)
 
@@ -44,8 +46,16 @@ async def add_user(user: UserSignup):
             detail={"error": f"Username {user.username} already exists.", "code": "USERNAME_EXISTS"},
         )
 
+    # Generate a unique userID
+    while True:
+        user_id = random.randint(1, 10**6)  # Generate a random userID
+        existing_id = await db.users.find_one({"userID": user_id})
+        if not existing_id:
+            break  # Ensure the generated ID is unique
+
     # Insert new user
     new_user = {
+        "userID": user_id,  # Assign generated userID
         "username": user.username,
         "email": user.email,
         "password": hashed_password,
@@ -103,7 +113,7 @@ async def login(credentials: HTTPBasicCredentials = Depends(security)):
 @router.delete(
     "/{username}",
     status_code=status.HTTP_200_OK,
-    description="Deactivate a user account (admin-only).",
+    description="Deactivate a user account.",
 )
 async def remove_user(
     username: str,
@@ -147,7 +157,7 @@ async def update_user_details(
 ):
     """
     **Update User Details:**
-    - Updates the username, email, or password for a user.
+    - Updates the username, email, or password for a user. All fields are required and enter current values for fields you want unchanged.
     - Accessible by admin users or the user themselves.
     """
     # Ensure the current user has access
@@ -187,7 +197,7 @@ async def update_user_details(
 )
 async def get_user_details(
     username: str,
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
     """
     **Get User Details:**
@@ -201,12 +211,21 @@ async def get_user_details(
             detail="Access denied.",
         )
 
-    user = await db.users.find_one({"username": username})
+    # Query the user, ensuring only active users are returned
+    user = await db.users.find_one({"username": username, "isActive": True})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+
+    if not user.get("account"):  # Check if "account" is None or missing
+        user["account"] = {"accountID": None, "balance": 0.0}
+    elif "accountID" not in user["account"]:  # Check if "accountID" is missing in an existing account
+        user["account"]["accountID"] = None  # Ensure accountID is present for validation
+
+    # Convert MongoDB `_id` to string
     user["id"] = str(user["_id"])
     del user["_id"]
+
     return user
