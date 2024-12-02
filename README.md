@@ -1,4 +1,4 @@
-# Stock Trading System - Group 28 
+# Stock Trading System - Draft 
 
 ### Mongo DB attached to a web service for CRUD operations for the Stock Trading Database component. 
 
